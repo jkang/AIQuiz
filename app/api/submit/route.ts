@@ -114,13 +114,55 @@ function calculateObjectiveScore(answers: SubmitRequest['answers']): {
 // 根据总分确定结果等级
 function getResultText(totalScore: number, maxPoints: number): string {
   const percentage = (totalScore / maxPoints) * 100;
-  
+
   if (percentage >= 80) {
     return '优秀 ✨';
   } else if (percentage >= 60) {
     return '通过 👍';
   } else {
     return '不通过 🔴';
+  }
+}
+
+// 保存结果到 Google Sheets
+async function saveToGoogleSheets(data: {
+  userName: string;
+  score: number;
+  totalPoints: number;
+  resultText: string;
+  objectiveScore: number;
+  shortAnswerScore: number;
+  shortAnswerFeedback: string;
+  wrongAnswers: { question: string; correctAnswer: string; }[];
+  rawAnswers: SubmitRequest['answers'];
+}): Promise<void> {
+  try {
+    const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+    const adminToken = process.env.ADMIN_TOKEN;
+
+    if (!webhookUrl || !adminToken) {
+      console.warn('Google Sheets webhook not configured, skipping save');
+      return;
+    }
+
+    const response = await fetch(`${webhookUrl}?token=${adminToken}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Sheets API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Successfully saved to Google Sheets:', result);
+
+  } catch (error) {
+    console.error('Failed to save to Google Sheets:', error);
+    // 不抛出错误，避免影响用户体验
   }
 }
 
@@ -158,6 +200,7 @@ export async function POST(request: NextRequest) {
     const totalScore = objectiveScore + shortAnswerScore;
     const resultText = getResultText(totalScore, totalPoints);
 
+    // 准备响应数据
     const response: SubmitResponse = {
       score: totalScore,
       totalPoints,
@@ -165,6 +208,21 @@ export async function POST(request: NextRequest) {
       wrongAnswers,
       shortAnswerFeedback
     };
+
+    // 异步保存到 Google Sheets（不阻塞响应）
+    saveToGoogleSheets({
+      userName,
+      score: totalScore,
+      totalPoints,
+      resultText,
+      objectiveScore,
+      shortAnswerScore,
+      shortAnswerFeedback,
+      wrongAnswers,
+      rawAnswers: answers
+    }).catch(error => {
+      console.error('Background save to Google Sheets failed:', error);
+    });
 
     return NextResponse.json(response);
 
