@@ -140,9 +140,47 @@ function doGet(e) {
  */
 function exportAsCSV(values) {
   let csvContent = '';
-  
+
   values.forEach((row, index) => {
-    const csvRow = row.map(cell => {
+    let enhancedRow = [...row];
+
+    if (index === 0) {
+      // 标题行，添加额外的列
+      enhancedRow.push('详细答题情况', '错题分析');
+    } else {
+      // 数据行，解析原始答案数据
+      const rawAnswersStr = row[9] || ''; // 原始答案数据在第10列（索引9）
+      const wrongAnswersStr = row[8] || ''; // 错题详情在第9列（索引8）
+
+      let detailedAnswers = '';
+      let wrongAnalysis = '';
+
+      try {
+        // 解析原始答案
+        if (rawAnswersStr) {
+          const rawAnswers = JSON.parse(rawAnswersStr);
+          detailedAnswers = rawAnswers.map((answer) =>
+            `题目${answer.questionIndex + 1}: ${Array.isArray(answer.answer) ? answer.answer.join(', ') : answer.answer}`
+          ).join(' | ');
+        }
+
+        // 解析错题详情
+        if (wrongAnswersStr) {
+          const wrongAnswers = JSON.parse(wrongAnswersStr);
+          wrongAnalysis = wrongAnswers.map((wrong) =>
+            `${wrong.question} (正确答案: ${wrong.correctAnswer})`
+          ).join(' | ');
+        }
+
+      } catch (e) {
+        detailedAnswers = '解析失败';
+        wrongAnalysis = '解析失败';
+      }
+
+      enhancedRow.push(detailedAnswers, wrongAnalysis);
+    }
+
+    const csvRow = enhancedRow.map(cell => {
       // 处理包含逗号、引号或换行符的单元格
       let cellValue = String(cell || '');
       if (cellValue.includes(',') || cellValue.includes('"') || cellValue.includes('\n')) {
@@ -150,7 +188,7 @@ function exportAsCSV(values) {
       }
       return cellValue;
     }).join(',');
-    
+
     csvContent += csvRow + '\n';
   });
 
