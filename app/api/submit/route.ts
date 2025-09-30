@@ -140,28 +140,55 @@ async function saveToGoogleSheets(data: {
     const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
     const adminToken = process.env.ADMIN_TOKEN;
 
-    if (!webhookUrl || !adminToken) {
-      console.warn('Google Sheets webhook not configured, skipping save');
+    console.log('🔍 Attempting to save to Google Sheets...');
+    console.log('📊 Data to save:', {
+      userName: data.userName,
+      score: data.score,
+      totalPoints: data.totalPoints,
+      resultText: data.resultText
+    });
+
+    if (!webhookUrl) {
+      console.error('❌ GOOGLE_SHEETS_WEBHOOK_URL not configured');
       return;
     }
+
+    if (!adminToken) {
+      console.error('❌ ADMIN_TOKEN not configured');
+      return;
+    }
+
+    console.log('🔗 Webhook URL:', webhookUrl);
+    console.log('🔑 Admin Token:', adminToken ? 'configured' : 'missing');
+
+    const requestBody = JSON.stringify(data);
+    console.log('📤 Request body size:', requestBody.length, 'characters');
 
     const response = await fetch(`${webhookUrl}?token=${adminToken}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: requestBody,
     });
 
+    console.log('📥 Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error(`Google Sheets API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('❌ Google Sheets API error response:', errorText);
+      throw new Error(`Google Sheets API error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('Successfully saved to Google Sheets:', result);
+    console.log('✅ Successfully saved to Google Sheets:', result);
 
   } catch (error) {
-    console.error('Failed to save to Google Sheets:', error);
+    console.error('💥 Failed to save to Google Sheets:', error);
+    console.error('💥 Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     // 不抛出错误，避免影响用户体验
   }
 }
