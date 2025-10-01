@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { quizData, totalPoints } from '../../../lib/questions';
+import { quizData, totalPoints, questionGroups, groupPoints } from '../../../lib/questions';
 import { buildPrompt } from '../../../lib/prompt';
 
 // 定义请求体类型
@@ -27,6 +27,13 @@ interface SubmitResponse {
     correctAnswer: string;
   }[];
   shortAnswerFeedback: string;
+  groupScores?: {
+    groupId: string;
+    title: string;
+    score: number;
+    totalPoints: number;
+    resultText: string;
+  }[];
 }
 
 // 调用AI进行简答题评估
@@ -124,6 +131,76 @@ function getResultText(totalScore: number, maxPoints: number): string {
   }
 }
 
+// 计算各组得分
+function calculateGroupScores(answers: SubmitRequest['answers']): {
+  groupId: string;
+  title: string;
+  score: number;
+  totalPoints: number;
+  resultText: string;
+}[] {
+  const groupScores = [];
+  let currentIndex = 0;
+
+  for (const group of questionGroups) {
+    let groupScore = 0;
+    const groupTotalPoints = group.questions.reduce((sum, q) => sum + q.points, 0);
+
+    // 计算该组的得分
+    for (let i = 0; i < group.questions.length; i++) {
+      const questionIndex = currentIndex + i;
+      const question = group.questions[i];
+      const answerData = answers.find(a => a.questionIndex === questionIndex);
+
+      if (!answerData || question.type === 'textarea') {
+        // 简答题的分数会在后面单独计算
+        continue;
+      }
+
+      const correctAnswer = question.answer;
+      let isCorrect = false;
+
+      if (question.type === 'radio') {
+        isCorrect = answerData.answer === correctAnswer;
+      } else if (question.type === 'checkbox') {
+        const userAnswers = Array.isArray(answerData.answer) ? answerData.answer.sort() : [answerData.answer].sort();
+        const correctAnswers = Array.isArray(correctAnswer) ? correctAnswer.sort() : [correctAnswer].sort();
+        isCorrect = JSON.stringify(userAnswers) === JSON.stringify(correctAnswers);
+      }
+
+      if (isCorrect) {
+        groupScore += question.points;
+      }
+    }
+
+    groupScores.push({
+      groupId: group.id,
+      title: group.title,
+      score: groupScore,
+      totalPoints: groupTotalPoints,
+      resultText: getResultText(groupScore, groupTotalPoints),
+    });
+
+    currentIndex += group.questions.length;
+  }
+
+  return groupScores;
+}
+
+// 根据各组结果确定最终结果（两组都通过才通过，两组都优秀才优秀）
+function getFinalResultText(groupScores: { resultText: string }[]): string {
+  const allExcellent = groupScores.every(g => g.resultText === '优秀 ✨');
+  const allPassed = groupScores.every(g => g.resultText === '优秀 ✨' || g.resultText === '通过 👍');
+
+  if (allExcellent) {
+    return '优秀 ✨';
+  } else if (allPassed) {
+    return '通过 👍';
+  } else {
+    return '不通过 🔴';
+  }
+}
+
 // 保存结果到 Google Sheets
 async function saveToGoogleSheets(data: {
   userName: string;
@@ -209,31 +286,59 @@ export async function POST(request: NextRequest) {
     // 计算客观题得分
     const { score: objectiveScore, wrongAnswers } = calculateObjectiveScore(answers);
 
-    // 找到简答题答案
-    const shortAnswerIndex = quizData.findIndex(q => q.type === 'textarea');
-    const shortAnswerData = answers.find(a => a.questionIndex === shortAnswerIndex);
-    
-    let shortAnswerScore = 0;
-    let shortAnswerFeedback = '';
+    // 计算各组得分（不包含简答题）
+    let groupScores = calculateGroupScores(answers);
 
-    // 如果有简答题，进行AI评估
-    if (shortAnswerData && typeof shortAnswerData.answer === 'string') {
-      const evaluation = await evaluateShortAnswer(shortAnswerData.answer);
-      shortAnswerScore = evaluation.score;
-      shortAnswerFeedback = evaluation.feedback;
+    // 处理所有简答题的AI评估
+    let totalShortAnswerScore = 0;
+    let allShortAnswerFeedback: string[] = [];
+
+    for (let groupIndex = 0; groupIndex < questionGroups.length; groupIndex++) {
+      const group = questionGroups[groupIndex];
+      let groupStartIndex = 0;
+
+      // 计算该组的起始索引
+      for (let i = 0; i < groupIndex; i++) {
+        groupStartIndex += questionGroups[i].questions.length;
+      }
+
+      // 找到该组的简答题
+      for (let i = 0; i < group.questions.length; i++) {
+        const question = group.questions[i];
+        if (question.type === 'textarea') {
+          const globalIndex = groupStartIndex + i;
+          const answerData = answers.find(a => a.questionIndex === globalIndex);
+
+          if (answerData && typeof answerData.answer === 'string') {
+            const evaluation = await evaluateShortAnswer(answerData.answer);
+            totalShortAnswerScore += evaluation.score;
+            allShortAnswerFeedback.push(`【${group.title}】${evaluation.feedback}`);
+
+            // 更新该组的得分
+            groupScores[groupIndex].score += evaluation.score;
+            groupScores[groupIndex].resultText = getResultText(
+              groupScores[groupIndex].score,
+              groupScores[groupIndex].totalPoints
+            );
+          }
+        }
+      }
     }
 
     // 计算总分
-    const totalScore = objectiveScore + shortAnswerScore;
-    const resultText = getResultText(totalScore, totalPoints);
+    const totalScore = objectiveScore + totalShortAnswerScore;
+
+    // 根据各组结果确定最终结果
+    const finalResultText = getFinalResultText(groupScores);
 
     // 准备响应数据
     const response: SubmitResponse = {
       score: totalScore,
       totalPoints,
-      resultText,
+      resultText: finalResultText,
       wrongAnswers,
-      shortAnswerFeedback
+      shortAnswerFeedback: allShortAnswerFeedback.join('\n\n'),
+      groupScores: groupScores,
     };
 
     // 异步保存到 Google Sheets（不阻塞响应）
@@ -241,13 +346,14 @@ export async function POST(request: NextRequest) {
       userName,
       score: totalScore,
       totalPoints,
-      resultText,
+      resultText: finalResultText,
       objectiveScore,
-      shortAnswerScore,
-      shortAnswerFeedback,
+      shortAnswerScore: totalShortAnswerScore,
+      shortAnswerFeedback: allShortAnswerFeedback.join('\n\n'),
       wrongAnswers,
-      rawAnswers: answers
-    }).catch(error => {
+      rawAnswers: answers,
+      groupScores: groupScores,
+    } as any).catch(error => {
       console.error('Background save to Google Sheets failed:', error);
     });
 
