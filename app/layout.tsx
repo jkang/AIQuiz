@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AI 技术应用架构测验",
-  description: "一个用于评估AI技术应用知识的在线测验。",
+  title: "AI知识基础测验",
+  description: "AI应用知识的在线测验",
 };
 
 export default function RootLayout({
