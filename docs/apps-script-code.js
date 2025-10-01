@@ -52,7 +52,8 @@ function doPost(e) {
       requestData.shortAnswerScore || 0,           // G: 简答题得分
       requestData.shortAnswerFeedback || '',       // H: 简答题反馈
       JSON.stringify(requestData.wrongAnswers || []), // I: 错题详情
-      JSON.stringify(requestData.rawAnswers || [])    // J: 原始答案数据
+      JSON.stringify(requestData.rawAnswers || []),   // J: 原始答案数据
+      JSON.stringify(requestData.groupScores || [])   // K: 分组得分详情（新增）
     ];
 
     // 写入数据
@@ -146,14 +147,30 @@ function exportAsCSV(values) {
 
     if (index === 0) {
       // 标题行，添加额外的列
-      enhancedRow.push('详细答题情况', '错题分析');
+      enhancedRow.push(
+        '详细答题情况',
+        '错题分析',
+        '第1组得分',
+        '第1组总分',
+        '第1组结果',
+        '第2组得分',
+        '第2组总分',
+        '第2组结果'
+      );
     } else {
       // 数据行，解析原始答案数据
       const rawAnswersStr = row[9] || ''; // 原始答案数据在第10列（索引9）
       const wrongAnswersStr = row[8] || ''; // 错题详情在第9列（索引8）
+      const groupScoresStr = row[10] || ''; // 分组得分在第11列（索引10）
 
       let detailedAnswers = '';
       let wrongAnalysis = '';
+      let group1Score = '';
+      let group1Total = '';
+      let group1Result = '';
+      let group2Score = '';
+      let group2Total = '';
+      let group2Result = '';
 
       try {
         // 解析原始答案
@@ -172,12 +189,36 @@ function exportAsCSV(values) {
           ).join(' | ');
         }
 
+        // 解析分组得分
+        if (groupScoresStr) {
+          const groupScores = JSON.parse(groupScoresStr);
+          if (groupScores.length > 0) {
+            group1Score = groupScores[0].score || '';
+            group1Total = groupScores[0].totalPoints || '';
+            group1Result = groupScores[0].resultText || '';
+          }
+          if (groupScores.length > 1) {
+            group2Score = groupScores[1].score || '';
+            group2Total = groupScores[1].totalPoints || '';
+            group2Result = groupScores[1].resultText || '';
+          }
+        }
+
       } catch (e) {
         detailedAnswers = '解析失败';
         wrongAnalysis = '解析失败';
       }
 
-      enhancedRow.push(detailedAnswers, wrongAnalysis);
+      enhancedRow.push(
+        detailedAnswers,
+        wrongAnalysis,
+        group1Score,
+        group1Total,
+        group1Result,
+        group2Score,
+        group2Total,
+        group2Result
+      );
     }
 
     const csvRow = enhancedRow.map(cell => {

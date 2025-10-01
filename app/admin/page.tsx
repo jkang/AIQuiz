@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Download, Eye, RefreshCw, Lock, ChevronDown, ChevronUp, FileText } from 'lucide-react';
-import { quizData } from '../lib/questions';
+import { quizData } from '../../lib/questions';
 
 interface QuizRecord {
   '提交时间': string;
