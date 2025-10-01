@@ -16,10 +16,10 @@ export default function Home() {
         {/* 标题卡片 */}
         <div className="text-center mb-8">
           <div className="inline-block">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-3 animate-fade-in">
-              AI应用知多少
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-3 animate-fade-in">
+              AI应用知多
             </h1>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-4 animate-fade-in-delay">
+            <h2 className="text-1xl md:text-2xl font-bold text-gray-700 mb-4 animate-fade-in-delay">
               知识小测验
             </h2>
             <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
