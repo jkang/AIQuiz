@@ -2,14 +2,70 @@ import QuizClient from "@/components/quick-client";
 
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-4 md:p-24 bg-gray-50">
-      <div className="w-full max-w-4xl bg-white p-6 md:p-10 rounded-xl shadow-lg">
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-blue-600 mb-8">
-          AI 技术应用架构知识测验
-        </h1>
-        {/* 核心交互逻辑由客户端组件处理 */}
-        <QuizClient />
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-4 md:p-8 overflow-hidden">
+      {/* 渐变背景 */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50"></div>
+
+      {/* 装饰性背景元素 */}
+      <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+      <div className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+
+      {/* 主内容 */}
+      <div className="relative w-full max-w-5xl">
+        {/* 标题卡片 */}
+        <div className="text-center mb-8">
+          <div className="inline-block">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-3 animate-fade-in">
+              AI 技术应用架构
+            </h1>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-700 mb-4 animate-fade-in-delay">
+              知识测验
+            </h2>
+            <div className="h-1 w-32 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
+          </div>
+        </div>
+
+        {/* 测验卡片 */}
+        <div className="bg-white/80 backdrop-blur-lg p-6 md:p-10 rounded-2xl shadow-2xl border border-white/20 hover:shadow-3xl transition-all duration-300">
+          <QuizClient />
+        </div>
+
+        {/* 底部装饰 */}
+        <div className="text-center mt-6 text-sm text-gray-500">
+          <p className="animate-fade-in-delay-2">💡 测试你的 AI 技术知识，获得专业评估反馈</p>
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+        .animate-fade-in {
+          animation: fade-in 0.8s ease-out;
+        }
+        .animate-fade-in-delay {
+          animation: fade-in 0.8s ease-out 0.2s both;
+        }
+        .animate-fade-in-delay-2 {
+          animation: fade-in 0.8s ease-out 0.4s both;
+        }
+      `}</style>
     </main>
   );
 }
