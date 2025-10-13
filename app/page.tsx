@@ -17,7 +17,7 @@ export default function Home() {
         <div className="text-center mb-8">
           <div className="inline-block">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 mb-3 animate-fade-in">
-              AI应用知多
+              AI项目快速启动
             </h1>
             <h2 className="text-1xl md:text-2xl font-bold text-gray-700 mb-4 animate-fade-in-delay">
               知识小测验
