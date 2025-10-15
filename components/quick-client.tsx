@@ -398,8 +398,8 @@ export default function QuizClient() {
 
         {/* 提示信息 */}
         <div className="mt-8 text-sm text-gray-500 space-y-2">
-          <p>💡 共 9 道题目，包含单选、多选和简答题</p>
-          <p>⏱️ 预计用时 10-15 分钟</p>
+          <p>💡 共 20 道题目，包含单选、多选和简答题</p>
+          <p>⏱️ 预计用时 15-20 分钟</p>
           <p>🤖 AI 将为你的简答题提供专业反馈</p>
         </div>
       </div>
