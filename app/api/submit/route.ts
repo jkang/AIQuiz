@@ -341,8 +341,8 @@ export async function POST(request: NextRequest) {
       groupScores: groupScores,
     };
 
-    // 异步保存到 Google Sheets（不阻塞响应）
-    saveToGoogleSheets({
+    // 同步保存到 Google Sheets（确保在响应前完成，避免 Serverless 环境下任务被中断）
+    await saveToGoogleSheets({
       userName,
       score: totalScore,
       totalPoints,
@@ -354,7 +354,7 @@ export async function POST(request: NextRequest) {
       rawAnswers: answers,
       groupScores: groupScores,
     } as any).catch(error => {
-      console.error('Background save to Google Sheets failed:', error);
+      console.error('Save to Google Sheets failed:', error);
     });
 
     return NextResponse.json(response);
