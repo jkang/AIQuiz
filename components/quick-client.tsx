@@ -164,7 +164,7 @@ function downloadResultAsHTML(resultData: ResultData, userName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `测验结果_${userName}_${new Date().toISOString().slice(0, 10)}.html`;
+  link.download = `${userName}_${new Date().toISOString().slice(0, 10)}.html`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
