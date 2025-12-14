@@ -40,10 +40,141 @@ interface ResultData {
   }[];
 }
 
+// 生成结果 HTML 并下载
+function downloadResultAsHTML(resultData: ResultData, userName: string) {
+  const timestamp = new Date().toLocaleString('zh-CN');
+  const scorePercentage = ((resultData.score / resultData.totalPoints) * 100).toFixed(1);
+
+  // 根据结果类型确定颜色
+  let resultColor = '#000';
+  let resultBgColor = '#f3f4f6';
+  if (resultData.resultText.includes('不通过')) {
+    resultColor = '#dc2626';
+    resultBgColor = '#fef2f2';
+  } else if (resultData.resultText.includes('通过')) {
+    resultColor = '#16a34a';
+    resultBgColor = '#f0fdf4';
+  }
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${userName} 的测验结果 - AI Quiz</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; padding: 20px; color: #111; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; margin-bottom: 8px; }
+    .header .time { color: #6b7280; font-size: 14px; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .result-badge { display: inline-block; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 18px; background: ${resultBgColor}; color: ${resultColor}; border: 2px solid ${resultColor}; }
+    .score-section { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 24px 0; }
+    .score-main { font-size: 48px; font-weight: bold; }
+    .score-total { font-size: 32px; color: #6b7280; }
+    .progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 16px 0; }
+    .progress-fill { height: 100%; background: ${resultColor}; border-radius: 4px; }
+    .percentage { text-align: center; color: #6b7280; font-size: 14px; }
+    .section-title { font-size: 18px; font-weight: bold; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .group-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+    .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .group-title { font-weight: 600; }
+    .group-badge { font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+    .wrong-item { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px; margin-bottom: 8px; border-radius: 0 8px 8px 0; }
+    .wrong-question { font-weight: 600; margin-bottom: 8px; }
+    .wrong-answer { color: #16a34a; font-size: 14px; }
+    .feedback-box { background: #f9fafb; border-left: 4px solid #000; padding: 16px; border-radius: 0 8px 8px 0; white-space: pre-wrap; line-height: 1.6; }
+    .footer { text-align: center; margin-top: 24px; color: #9ca3af; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>${userName} 的测验结果</h1>
+      <p class="time">保存时间：${timestamp}</p>
+    </div>
+
+    <div class="card" style="text-align: center;">
+      <div class="result-badge">${resultData.resultText}</div>
+      <div class="score-section">
+        <span class="score-main">${resultData.score}</span>
+        <span class="score-total">/ ${resultData.totalPoints}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${scorePercentage}%"></div>
+      </div>
+      <p class="percentage">正确率: ${scorePercentage}%</p>
+    </div>
+
+    ${resultData.groupScores && resultData.groupScores.length > 0 ? `
+    <div class="card">
+      <h3 class="section-title">📊 各组得分详情</h3>
+      <div class="group-grid">
+        ${resultData.groupScores.map(group => {
+          const gPct = ((group.score / group.totalPoints) * 100).toFixed(1);
+          let gColor = '#000';
+          if (group.resultText.includes('不通过')) gColor = '#dc2626';
+          else if (group.resultText.includes('通过') && !group.resultText.includes('优秀')) gColor = '#16a34a';
+          return `
+          <div class="group-card">
+            <div class="group-header">
+              <span class="group-title">${group.title}</span>
+              <span class="group-badge" style="background: ${gColor}; color: white;">${group.resultText}</span>
+            </div>
+            <div style="font-size: 24px; font-weight: bold; margin: 8px 0;">${group.score} <span style="color: #6b7280; font-size: 16px;">/ ${group.totalPoints} 分</span></div>
+            <div class="progress-bar"><div class="progress-fill" style="width: ${gPct}%; background: ${gColor};"></div></div>
+            <p class="percentage">${gPct}%</p>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    ` : ''}
+
+    ${resultData.wrongAnswers.length > 0 ? `
+    <div class="card">
+      <h3 class="section-title" style="color: #dc2626;">❌ 错题解析</h3>
+      ${resultData.wrongAnswers.map((item, idx) => `
+        <div class="wrong-item">
+          <div class="wrong-question">${idx + 1}. ${item.question}</div>
+          <div class="wrong-answer">✓ 正确答案：${item.correctAnswer}</div>
+        </div>
+      `).join('')}
+    </div>
+    ` : ''}
+
+    ${resultData.shortAnswerFeedback ? `
+    <div class="card">
+      <h3 class="section-title">💬 AI 智能反馈</h3>
+      <div class="feedback-box">${resultData.shortAnswerFeedback}</div>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+      <p>AI Quiz 测验系统 | 本结果由系统自动生成</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  // 创建 Blob 并下载
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `测验结果_${userName}_${new Date().toISOString().slice(0, 10)}.html`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // 结果展示组件
 function ResultCard({ resultData, userName }: { resultData: ResultData; userName: string }) {
     let resultClass = '';
-    let ResultIcon: any = null;
+    let ResultIcon: React.ComponentType<{ className?: string }> | null = null;
     let iconColor = '';
     let badgeColor = '';
     let progressColor = '';
@@ -213,9 +344,22 @@ function ResultCard({ resultData, userName }: { resultData: ResultData; userName
             </div>
           </div>
         )}
+
+        {/* 保存结果按钮 */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={() => downloadResultAsHTML(resultData, userName)}
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center gap-3 border border-gray-300"
+          >
+            <Download className="w-5 h-5" />
+            <span>保存结果到本地</span>
+          </button>
+          <p className="text-center text-sm text-gray-500 mt-2">
+            下载 HTML 文件，可在浏览器中查看完整结果
+          </p>
+        </div>
       </div>
-
-
     </div>
   );
 }
