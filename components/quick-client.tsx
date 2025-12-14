@@ -371,8 +371,14 @@ export default function QuizClient() {
   const [quizState, setQuizState] = useState<'not_started' | 'in_progress' | 'submitting' | 'completed'>('not_started');
   const [result, setResult] = useState<ResultData | null>(null);
   const [currentPage, setCurrentPage] = useState(0); // 当前页码（从0开始）
+  const [incompleteQuestionIndex, setIncompleteQuestionIndex] = useState<number | null>(null); // 未完成题目的索引
 
   const handleInputChange = (questionIndex: number, answer: string, isCheckbox: boolean) => {
+    // 清除该题目的未完成提示
+    if (incompleteQuestionIndex === questionIndex) {
+      setIncompleteQuestionIndex(null);
+    }
+
     setAnswers(prev => {
       if (isCheckbox) {
         const existing = (prev[questionIndex] as string[] || []);
@@ -412,8 +418,8 @@ export default function QuizClient() {
     };
   };
 
-  // 检查当前页是否所有必填题都已回答
-  const isCurrentPageComplete = () => {
+  // 查找第一个未完成的题目索引，如果都完成则返回 null
+  const findFirstIncompleteQuestion = (): number | null => {
     const { questions, startIndex } = getCurrentGroupQuestions();
 
     for (let i = 0; i < questions.length; i++) {
@@ -422,30 +428,46 @@ export default function QuizClient() {
 
       // 检查必填题（所有题目都是必填的）
       if (!answers[globalIndex]) {
-        return false;
+        return globalIndex;
       }
 
       // 对于多选题，检查是否至少选了一个
       if (question.type === 'checkbox') {
         const answer = answers[globalIndex];
         if (!Array.isArray(answer) || answer.length === 0) {
-          return false;
+          return globalIndex;
         }
       }
     }
 
-    return true;
+    return null;
+  };
+
+  // 滚动到指定题目并显示提示
+  const scrollToQuestion = (globalIndex: number) => {
+    setIncompleteQuestionIndex(globalIndex);
+
+    // 延迟滚动，确保状态更新后再滚动
+    setTimeout(() => {
+      const element = document.getElementById(`question-${globalIndex}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
   };
 
   // 下一页
   const goToNextPage = () => {
-    if (!isCurrentPageComplete()) {
-      alert('请完成当前页面的所有题目后再继续');
+    const incompleteIndex = findFirstIncompleteQuestion();
+
+    if (incompleteIndex !== null) {
+      scrollToQuestion(incompleteIndex);
       return;
     }
 
     if (currentPage < questionGroups.length - 1) {
       setCurrentPage(currentPage + 1);
+      setIncompleteQuestionIndex(null);
       // 滚动到顶部
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -468,9 +490,10 @@ export default function QuizClient() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 验证所有页面的题目都已完成
-    if (!isCurrentPageComplete()) {
-      alert('请完成当前页面的所有题目');
+    // 验证当前页面的题目都已完成
+    const incompleteIndex = findFirstIncompleteQuestion();
+    if (incompleteIndex !== null) {
+      scrollToQuestion(incompleteIndex);
       return;
     }
 
@@ -640,14 +663,31 @@ export default function QuizClient() {
             typeLabel = '简答题';
           }
 
+          const isIncomplete = incompleteQuestionIndex === globalIndex;
+
           return (
           <div
             key={globalIndex}
-            className="bg-white rounded-lg p-6 border border-gray-200 hover:border-gray-400 transition-all duration-200"
+            id={`question-${globalIndex}`}
+            className={`bg-white rounded-lg p-6 border-2 transition-all duration-200 ${
+              isIncomplete
+                ? 'border-red-500 shadow-lg shadow-red-100'
+                : 'border-gray-200 hover:border-gray-400'
+            }`}
           >
+            {/* 未完成提示 */}
+            {isIncomplete && (
+              <div className="flex items-center gap-2 mb-4 p-3 bg-red-50 text-red-600 rounded-lg">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">请完成此题后再继续</span>
+              </div>
+            )}
+
             {/* 题目标题 */}
             <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-black text-white rounded-md flex items-center justify-center font-bold">
+              <div className={`flex-shrink-0 w-8 h-8 text-white rounded-md flex items-center justify-center font-bold ${
+                isIncomplete ? 'bg-red-500' : 'bg-black'
+              }`}>
                 {localIndex + 1}
               </div>
               <div className="flex-1">
